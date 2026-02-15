@@ -53,6 +53,7 @@ st.markdown(
         font-size: 0.95rem;
         letter-spacing: 0.02em;
         padding-bottom: 0.75rem;
+        padding-top: 1rem;
     }
 
     .stTabs [aria-selected="true"] {
