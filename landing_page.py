@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import os
 
 def render():
     st.title("Cross-Currency Dynamics in Cryptocurrencies under Stablecoin Regulation")
@@ -22,7 +23,8 @@ def render():
     col_hero, col_hero_text = st.columns([1, 2])
     with col_hero:
         try:
-            st.image("/Users/isha/Desktop/NYU/IAQF/images/btc.jpeg", use_column_width=True)
+            image_path = os.path.join(os.path.dirname(__file__), "btc.jpeg")
+            st.image(image_path, use_column_width=True)
         except Exception:
             pass
     with col_hero_text:
