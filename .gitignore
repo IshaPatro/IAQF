@@ -1,0 +1,4 @@
+__pycache__/
+.ipynb_checkpoints/
+q2_stablecoin_dynamics/outputs/
+q2_stablecoin_dynamics/data/binance_raw/
