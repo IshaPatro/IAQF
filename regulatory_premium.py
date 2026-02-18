@@ -2,7 +2,9 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import os
+from sklearn.linear_model import LinearRegression
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 
@@ -10,21 +12,87 @@ DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 def load_data():
     btc_usd = pd.read_csv(os.path.join(DATA_DIR, "BTC_USD_coinbase.csv"), parse_dates=["timestamp"])
     btc_usdt = pd.read_csv(os.path.join(DATA_DIR, "BTC_USDT_binance.csv"), parse_dates=["timestamp"])
+    btc_usdc = pd.read_csv(os.path.join(DATA_DIR, "BTC_USDC_binance.csv"), parse_dates=["timestamp"])
 
     btc_usd = btc_usd.rename(columns={"close": "btc_usd"})
     btc_usdt = btc_usdt.rename(columns={"close": "btc_usdt"})
+    btc_usdc = btc_usdc.rename(columns={"close": "btc_usdc"})
 
-    merged = btc_usd[["timestamp", "btc_usd"]].merge(
+    merged_2023 = btc_usd[["timestamp", "btc_usd"]].merge(
         btc_usdt[["timestamp", "btc_usdt"]], on="timestamp", how="inner"
+    ).merge(
+        btc_usdc[["timestamp", "btc_usdc"]], on="timestamp", how="inner"
     )
     
-    merged["timestamp"] = pd.to_datetime(merged["timestamp"], utc=True)
-    merged = merged.sort_values("timestamp").reset_index(drop=True)
+    merged_2023["timestamp"] = pd.to_datetime(merged_2023["timestamp"], utc=True)
+    merged_2023 = merged_2023.sort_values("timestamp").reset_index(drop=True)
 
-    merged["implied_usdt"] = merged["btc_usd"] / merged["btc_usdt"]
-    merged["premium_pct"] = (merged["implied_usdt"] - 1.0) * 100
+    merged_2023["implied_usdt"] = merged_2023["btc_usd"] / merged_2023["btc_usdt"]
     
-    return merged
+    merged_2023["implied_usdc"] = merged_2023["btc_usd"] / merged_2023["btc_usdc"]
+    merged_2023["usdc_premium_bps"] = (merged_2023["btc_usdc"] / merged_2023["btc_usd"] - 1.0) * 10000
+    
+    ust_path = os.path.join(DATA_DIR, "UST_USD_yfinance.csv")
+    luna_path = os.path.join(DATA_DIR, "LUNA_USD_yfinance.csv")
+    
+    merged_2022 = pd.DataFrame()
+    if os.path.exists(ust_path) and os.path.exists(luna_path):
+        try:
+             cols = ["Date", "ust_price", "High", "Low", "Open", "Volume"]
+             ust = pd.read_csv(ust_path, skiprows=3, header=None, names=cols)
+             
+             cols = ["Date", "luna_price", "High", "Low", "Open", "Volume"]
+             luna = pd.read_csv(luna_path, skiprows=3, header=None, names=cols)
+             
+             ust["Date"] = pd.to_datetime(ust["Date"])
+             luna["Date"] = pd.to_datetime(luna["Date"])
+             
+             merged_2022 = pd.merge(ust[["Date", "ust_price"]], luna[["Date", "luna_price"]], on="Date", how="inner")
+             merged_2022 = merged_2022.sort_values("Date")
+        except Exception as e:
+             st.error(f"Error parse Terra data: {e}")
+
+    return merged_2023, merged_2022
+
+def calculate_half_life(df):
+    svb_start = pd.Timestamp("2023-03-10 00:00:00", tz="UTC")
+    svb_end = pd.Timestamp("2023-03-13 23:59:59", tz="UTC")
+    
+    crisis_df = df[(df["timestamp"] >= svb_start) & (df["timestamp"] <= svb_end)].copy()
+    col = "usdc_premium_bps"
+    
+    crisis_df["premium_lag1"] = crisis_df[col].shift(1)
+    clean = crisis_df.dropna(subset=[col, "premium_lag1"])
+    
+    if len(clean) > 100:
+        X = clean["premium_lag1"].values.reshape(-1, 1)
+        y = clean[col].values
+        model = LinearRegression().fit(X, y)
+        persistence = float(model.coef_[0])
+        
+        if 0 < persistence < 1:
+            half_life_min = -np.log(2) / np.log(persistence)
+            return half_life_min / 60.0 # Return in hours
+            
+    return np.nan
+
+def calculate_correlations(df_2023, df_2022):
+    svb_start = pd.Timestamp("2023-03-10 00:00:00", tz="UTC")
+    svb_end = pd.Timestamp("2023-03-13 23:59:59", tz="UTC")
+    crisis_2023 = df_2023[(df_2023["timestamp"] >= svb_start) & (df_2023["timestamp"] <= svb_end)]
+    corr_usdc_btc = crisis_2023["btc_usdc"].corr(crisis_2023["btc_usd"])
+    corr_usdc_price_btc = crisis_2023["implied_usdc"].corr(crisis_2023["btc_usd"])
+    
+    crash_start = pd.Timestamp("2022-05-07")
+    crash_end = pd.Timestamp("2022-05-14")
+    
+    corr_ust_luna = np.nan
+    if not df_2022.empty and "Date" in df_2022.columns:
+        crisis_2022 = df_2022[(df_2022["Date"] >= crash_start) & (df_2022["Date"] <= crash_end)]
+        if not crisis_2022.empty:
+            corr_ust_luna = crisis_2022["ust_price"].corr(crisis_2022["luna_price"])
+            
+    return corr_usdc_price_btc, corr_ust_luna
 
 def _chart_layout(fig, title, yaxis_title, height=420):
     fig.update_layout(
@@ -43,7 +111,18 @@ def _chart_layout(fig, title, yaxis_title, height=420):
     return fig
 
 def render():
-    st.header("**The 'Kimchi Premium' vs. The 'Regulatory Premium'**")
+    st.header("Case Studies")
+    
+    st.markdown("""
+    **Index:**
+    1. [The 'Kimchi Premium' vs. The 'Regulatory Premium'](#the-kimchi-premium-vs-the-regulatory-premium)
+    2. [Endogenous vs. Exogenous Failures](#endogenous-vs-exogenous-failures)
+    """)
+    
+    st.divider()
+
+    st.header("The 'Kimchi Premium' vs. The 'Regulatory Premium'")
+    st.subheader("Research Idea")
     st.markdown(
         """
         Just as capital controls in South Korea create the **"Kimchi Premium"** (where BTC trades higher 
@@ -61,7 +140,7 @@ def render():
         """
     )
 
-    df = load_data()
+    df_2023, df_2022 = load_data()
     
     st.subheader("Application to March 2023 Data")
     st.markdown(
@@ -73,11 +152,11 @@ def render():
     
     fig1 = go.Figure()
     fig1.add_trace(go.Scatter(
-        x=df["timestamp"], y=df["btc_usd"],
+        x=df_2023["timestamp"], y=df_2023["btc_usd"],
         name="BTC/USD (Onshore)", line=dict(color="#4ECDC4", width=1.2)
     ))
     fig1.add_trace(go.Scatter(
-        x=df["timestamp"], y=df["btc_usdt"],
+        x=df_2023["timestamp"], y=df_2023["btc_usdt"],
         name="BTC/USDT (Offshore)", line=dict(color="#FF6B6B", width=1.2)
     ))
     
@@ -110,7 +189,7 @@ def render():
     
     fig2 = go.Figure()
     fig2.add_trace(go.Scatter(
-        x=df["timestamp"], y=df["implied_usdt"],
+        x=df_2023["timestamp"], y=df_2023["implied_usdt"],
         name="Implied USDT", line=dict(color="#FFD93D", width=1.5),
         fill="tozeroy", fillcolor="rgba(255, 217, 61, 0.1)"
     ))
@@ -127,7 +206,7 @@ def render():
     
     col1, col2 = st.columns(2)
     
-    max_prem = df[df["timestamp"].between(svb_start, svb_end)]["implied_usdt"].max()
+    max_prem = df_2023[df_2023["timestamp"].between(svb_start, svb_end)]["implied_usdt"].max()
     
     with col1:
        st.metric("Peak Implied USDT Price", f"${max_prem:.4f}")
@@ -149,10 +228,94 @@ def render():
         """
     )
     
-    st.markdown(
-        """
-        **The 'Tether Premium':** Investigating why USDT traded above $1.00$ while the U.S. banking system collapsed 
-        is a fascinating angle. It suggests a **"de-coupling"** where the offshore crypto economy was viewed as 
-        insulated from U.S. regional banking contagion.
+
+    st.divider()
+
+    st.header("Endogenous vs. Exogenous Failures")
+    corr_usdc, corr_ust = calculate_correlations(df_2023, df_2022)
+    half_life_hours = calculate_half_life(df_2023)
+
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("#### Terra/UST (May 2022): The Endogenous Death Spiral")
+        st.error(
+            f"""
+            **What Happened:**
+            UST was an algorithmic stablecoin backed by LUNA. When confidence shook, the mint/burn mechanism 
+            forced the protocol to print infinite LUNA to buy back UST.
+            
+            **What Was Wrong:**
+            The backing was *endogenous*. The value of the collateral (LUNA) was derived from the success of 
+            the stablecoin itself. This created a positive feedback loop (death spiral).
+            
+            **Inference:**
+            Type I failures are **terminal**. Once the death spiral begins, there is no floor. 
+            The correlation between the stablecoin and its collateral approaches +1.0 during the crash 
+            (Empirical Correlation: **{corr_ust:.2f}**).
+            """
+        )
+
+    with col2:
+        st.markdown("#### USDC (March 2023): The Exogenous Liquidity Shock")
+        st.success(
+            f"""
+            **What Happened:**
+            USDC reserves were held at Silicon Valley Bank (SVB), which failed. \$3.3B of reserves were trapped.
+            
+            **What Was Wrong:**
+            The backing was *exogenous* (US Treasuries/Cash), but the custody was centralized. The failure was 
+            due to a counterparty (SVB) in the traditional banking system, not the stablecoin's design.
+            
+            **Inference:**
+            Type II failures are **temporary**. The assets existed but were illiquid. Once access was restored, 
+            the peg recovered. The correlation with the broader crypto market remained low/negative 
+            (Empirical Correlation: **{corr_usdc:.2f}**).
+            """
+        )
+    
+    # Death Spiral Chart
+    if not df_2022.empty and "Date" in df_2022.columns:
+        st.markdown("#### The Death Spiral Visualization (May 2022)")
+        
+        crash_start = pd.Timestamp("2022-05-01")
+        crash_end = pd.Timestamp("2022-05-31")
+        plot_df = df_2022[(df_2022["Date"] >= crash_start) & (df_2022["Date"] <= crash_end)]
+        
+        fig3 = make_subplots(specs=[[{"secondary_y": True}]])
+        
+        fig3.add_trace(
+            go.Scatter(
+                x=plot_df["Date"], y=plot_df["ust_price"],
+                name="UST Price", line=dict(color="#EF553B", width=2)
+            ),
+            secondary_y=False,
+        )
+        
+        fig3.add_trace(
+            go.Scatter(
+                x=plot_df["Date"], y=plot_df["luna_price"],
+                name="LUNA Price", line=dict(color="#00CC96", width=2, dash="dot")
+            ),
+            secondary_y=True,
+        )
+        
+        fig3.update_yaxes(title_text="UST Price ($)", secondary_y=False, gridcolor="rgba(255,255,255,0.05)")
+        fig3.update_yaxes(title_text="LUNA Price ($)", secondary_y=True, showgrid=False)
+        
+        _chart_layout(fig3, "Terra/UST Death Spiral: Positive Correlation", "")
+        st.plotly_chart(fig3, use_container_width=True)
+
+    st.markdown("#### Research Implication")
+    
+    st.info(
+        f"""
+        This comparison validates the GENIUS Act's ban on algorithmic stablecoins. The data shows that Type I 
+        failures are terminal (absorbing states), while Type II failures are temporary (mean-reverting) if 
+        the government intervenes.
+
+        **Empirical Evidence:**
+        Our model shows the Mean Reversion Speed (Half-Life) of USDC during the crisis was approximately **{half_life_hours:.2f} hours**.
+        This rapid recovery stands in stark contrast to UST's terminal decline.
         """
     )

@@ -220,11 +220,51 @@ def backtest_basis_arb(df):
     return pd.DataFrame(trades)
 
 
+def backtest_hawkes(df):
+    # Proxy for Branching Ratio (n) based on Volatility Clustering
+    # Real Hawkes estimation requires complex MLE optimization. 
+    # Here we demonstrate the "Criticality" signal using a Ratio of Short-term vs Long-term Volatility.
+    
+    # Use USDT deviations as the signal source
+    # If USDT depegs/moves violently, it triggers contagion.
+    # We use Absolute Returns of BTC/USDT as a proxy for "Market Excitement"
+    
+    returns = np.abs(df["btc_usdt"].pct_change().fillna(0))
+    
+    # Short-window intensity (Excitement)
+    intensity = returns.rolling(window=12).mean() # 1 hour
+    
+    # Background intensity (Baseline)
+    baseline = returns.rolling(window=288).mean() # 24 hours
+    
+    # Branching Ratio n = Intensity / Baseline
+    # We smooth it to reduce noise
+    n_ratio = (intensity / baseline).fillna(0)
+    
+    # We want to show the signal crossing 1.0 during stress
+    # During stable times, returns are noise (ratio ~ 1). 
+    # During shock, intensity >> baseline for a while.
+    
+    res = pd.DataFrame({
+        "timestamp": df["timestamp"],
+        "n_ratio": n_ratio
+    })
+    return res
+
 def render():
     df = load_all()
     df_5m = downsample(df, "5min")
 
-    st.subheader("Cross-Currency Arbitrage Strategy: Basis Mean-Reversion")
+    st.header("Quantitative Strategies")
+    
+    st.markdown("""
+    **Index:**
+    1. [Cross-Currency Basis Arbitrage](#cross-currency-basis-arbitrage)
+    """)
+    
+    st.divider()
+
+    st.header("Cross-Currency Basis Arbitrage")
     st.markdown(
         """
         Exploits the decoupling between BTC/USD and BTC/USDT during stress. When the basis 

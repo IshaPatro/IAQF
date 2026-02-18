@@ -74,9 +74,9 @@ st.markdown(
 tabs = st.tabs([
     "Overview",
     "Cross-Currency Basis Analysis",
-    "Cross-Currency Basis Arbitrage",
+    "Quant Strategies",
     "Stablecoin Dynamics",
-    "Case Study: Regulatory Premium",
+    "Case Studies",
 ])
 
 with tabs[0]:
