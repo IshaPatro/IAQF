@@ -4,6 +4,7 @@ import basis_analysis
 import strategies
 import stablecoin_dynamics
 import regulatory_premium
+import liquidity_evolution
 
 st.set_page_config(
     page_title="Cross-Currency Dynamics under Stablecoin Regulation",
@@ -77,6 +78,7 @@ tabs = st.tabs([
     "Quant Strategies",
     "Stablecoin Dynamics",
     "Case Studies",
+    "Liquidity Evolution",
 ])
 
 with tabs[0]:
@@ -93,3 +95,6 @@ with tabs[3]:
 
 with tabs[4]:
     regulatory_premium.render()
+
+with tabs[5]:
+    liquidity_evolution.render()
