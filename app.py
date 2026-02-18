@@ -3,6 +3,7 @@ import landing_page
 import basis_analysis
 import strategies
 import stablecoin_dynamics
+import regulatory_premium
 
 st.set_page_config(
     page_title="Cross-Currency Dynamics under Stablecoin Regulation",
@@ -75,6 +76,7 @@ tabs = st.tabs([
     "Cross-Currency Basis Analysis",
     "Cross-Currency Basis Arbitrage",
     "Stablecoin Dynamics",
+    "Case Study: Regulatory Premium",
 ])
 
 with tabs[0]:
@@ -88,3 +90,6 @@ with tabs[2]:
 
 with tabs[3]:
     stablecoin_dynamics.render()
+
+with tabs[4]:
+    regulatory_premium.render()
