@@ -2,6 +2,7 @@ import streamlit as st
 import landing_page
 import basis_analysis
 import strategies
+import stablecoin_dynamics
 
 st.set_page_config(
     page_title="Cross-Currency Dynamics under Stablecoin Regulation",
@@ -73,6 +74,7 @@ tabs = st.tabs([
     "Overview",
     "Cross-Currency Basis Analysis",
     "Cross-Currency Basis Arbitrage",
+    "Stablecoin Dynamics",
 ])
 
 with tabs[0]:
@@ -83,3 +85,6 @@ with tabs[1]:
 
 with tabs[2]:
     strategies.render()
+
+with tabs[3]:
+    stablecoin_dynamics.render()
