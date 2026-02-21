@@ -76,11 +76,11 @@ st.markdown(
 tabs = st.tabs([
     "Overview",
     "Cross-Currency Basis Analysis",
-    "Liquidity & Fragmentation",
-    "Quant Strategies",
     "Stablecoin Dynamics",
+    "Liquidity & Fragmentation",
     "Case Studies",
     "Liquidity Evolution",
+    "Quant Strategies",
 ])
 
 with tabs[0]:
@@ -90,16 +90,16 @@ with tabs[1]:
     basis_analysis.render()
 
 with tabs[2]:
-    liquidity_fragmentation.render()
-
-with tabs[3]:
-    strategies.render()
-
-with tabs[4]:
     stablecoin_dynamics.render()
 
-with tabs[5]:
+with tabs[3]:
+    liquidity_fragmentation.render()
+
+with tabs[4]:
     regulatory_premium.render()
 
-with tabs[6]:
+with tabs[5]:
     liquidity_evolution.render()
+
+with tabs[6]:
+    strategies.render()
