@@ -4,6 +4,7 @@ import basis_analysis
 import strategies
 import stablecoin_dynamics
 import regulatory_premium
+import liquidity_fragmentation
 import liquidity_evolution
 
 st.set_page_config(
@@ -75,6 +76,7 @@ st.markdown(
 tabs = st.tabs([
     "Overview",
     "Cross-Currency Basis Analysis",
+    "Liquidity & Fragmentation",
     "Quant Strategies",
     "Stablecoin Dynamics",
     "Case Studies",
@@ -88,13 +90,16 @@ with tabs[1]:
     basis_analysis.render()
 
 with tabs[2]:
-    strategies.render()
+    liquidity_fragmentation.render()
 
 with tabs[3]:
-    stablecoin_dynamics.render()
+    strategies.render()
 
 with tabs[4]:
-    regulatory_premium.render()
+    stablecoin_dynamics.render()
 
 with tabs[5]:
+    regulatory_premium.render()
+
+with tabs[6]:
     liquidity_evolution.render()
