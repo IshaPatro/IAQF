@@ -117,6 +117,7 @@ def render():
     **Index:**
     1. [The 'Kimchi Premium' vs. The 'Regulatory Premium'](#the-kimchi-premium-vs-the-regulatory-premium)
     2. [Endogenous vs. Exogenous Failures](#endogenous-vs-exogenous-failures)
+    3. [Regulatory Compliance vs. Privacy: ZKP Solutions](#regulatory-compliance-vs-privacy-zkp-solutions)
     """)
     
     st.divider()
@@ -319,3 +320,58 @@ def render():
         This rapid recovery stands in stark contrast to UST's terminal decline.
         """
     )
+
+    st.divider()
+
+    st.header("Regulatory Compliance vs. Privacy: ZKP Solutions")
+    
+    st.markdown(
+        """
+        The **GENIUS Act** introduces a fundamental tension: it secures the onshore market by subjecting stablecoin issuers 
+        to the **Bank Secrecy Act (BSA)**, but in doing so, it risks "de-pegging" the U.S. from the global, 
+        privacy-centric offshore crypto ecosystem.
+        """
+    )
+
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("#### The Friction: BSA & AML Compliance")
+        st.error(
+            """
+            **Requirement:**
+            Stablecoin issuers must implement strict Anti-Money Laundering (AML) and sanctions compliance programs.
+            
+            **The Problem:**
+            Traditional compliance often requires the exchange of sensitive PII (Personally Identifiable Information). 
+            Offshore participants—who may prioritize censorship resistance and privacy—may find these "onshore gates" 
+            too high, leading to a fragmented global market.
+            """
+        )
+
+    with col2:
+        st.markdown("#### The Solution: ZKP 'Compliance-by-Design'")
+        st.success(
+            """
+            **Zero-Knowledge Proofs (ZKPs):**
+            Enable a "proof of validity" without revealing underlying data. An institution can prove a 
+            transaction is compliant without sharing sensitive customer details.
+            
+            **Technology at Work:**
+            Initiatives like the BIS's **"Project Mandala"** use ZKPs to verify compliance statements 
+            (sanctions screening, capital flow checks) across borders automatically.
+            """
+        )
+
+    st.info(
+        """
+        **The Future Architecture: "Compliance-by-Design"**
+        
+        By automating compliance and attaching cryptographic proofs to digital assets, ZKPs reduce the 
+        friction between regulated onshore liquidity and the global market. 
+        
+        This architecture preserves **transactional privacy** while ensuring **regulatory adherence**, 
+        potentially solving the stability vs. control trade-off of the GENIUS Act era.
+        """
+    )
+
