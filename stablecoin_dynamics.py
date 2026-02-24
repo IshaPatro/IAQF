@@ -301,10 +301,12 @@ def render():
         *   **USDT Co-movement:** USDT premiums on Coinbase and Binance track closely, both plunging to discounts 
             of −150 to −180 bps during the SVB crisis before stabilizing at −40 to −50 bps post-crisis.
         *   **USDC Divergence:** USDC on Coinbase remains near zero throughout, while USDC on Binance spikes 
-            to over +1,400 bps during the crisis — a 14.25% deviation from peg.
+            to over +1,400 bps during the crisis — a 14.25% deviation from peg. (A detailed study has been done 
+            on this; see the <a href="javascript:void(0);" id="liquidity-link" style="color: #6C9BF2; font-weight: 600; text-decoration: none;">Liquidity Evolution section in the Case Studies tab</a>.)
         *   **Asymmetric Response:** USDT discounts widen symmetrically across exchanges; USDC experiences 
             venue-specific explosive volatility on Binance.
-        """
+        """,
+        unsafe_allow_html=True
     )
 
     st.divider()
@@ -419,8 +421,8 @@ def render():
     st.markdown(
         """
         **Analyst Insights:**
-        *   **Coinbase Stability:** Zero de-peg events (|premium| > 50 bps) on Coinbase, consistent with its 
-            role as USDC's home exchange and the tight integration with Circle's infrastructure.
+        *   **Coinbase Stability:** Zero de-peg events (|premium| > 50 bps) on Coinbase. It should be noted 
+            that during the crisis weekend, Coinbase temporarily halted USDC:USD conversions.
         *   **Binance Fragility:** 3,500+ de-peg events (11.6% of all observations), with max deviation of 
             +1,425 bps (14.25%).
         *   **High Persistence:** AR(1) coefficient of 0.998 and half-life of ~383 minutes (6.4 hours) indicates 
@@ -559,4 +561,29 @@ def render():
         (cash/Treasuries), the GENIUS Act removes the counterparty risk that drove the 2023 dislocations. 
         In a post-GENIUS world, regulated stablecoins converge to par — eliminating the basis.
         """
+    )
+
+    import streamlit.components.v1 as components
+    components.html(
+        """
+        <script>
+        const doc = window.parent.document;
+        setTimeout(function() {
+            const link = doc.getElementById('liquidity-link');
+            if (link) {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    // In Streamlit 1.37 elements might be buttons with data-baseweb="tab"
+                    const tabs = Array.from(doc.querySelectorAll('[data-baseweb="tab"]'));
+                    if (tabs && tabs.length > 5) {
+                        tabs[5].click();
+                        // Optional: attempt to scroll to "Liquidity Evolution" header within the case studies tab
+                    }
+                });
+            }
+        }, 500);
+        </script>
+        """,
+        height=0,
+        width=0,
     )
