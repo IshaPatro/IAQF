@@ -52,7 +52,42 @@ def load_data():
         except Exception as e:
              st.error(f"Error parse Terra data: {e}")
 
-    return merged_2023, merged_2022
+    # Load Liquidity Evolution Data
+    pairs = {
+        "btc_usd_cb": ("BTC_USD_coinbase.csv", "btc_usd_cb"),
+        "btc_usdt_bn": ("BTC_USDT_binance.csv", "btc_usdt_bn"),
+        "btc_usdc_bn": ("BTC_USDC_binance.csv", "btc_usdc_bn"),
+        "btc_usdc_cb": ("BTC_USDC_coinbase.csv", "btc_usdc_cb"),
+        "btc_usdt_cb": ("BTC_USDT_coinbase.csv", "btc_usdt_cb"),
+        "usdt_usd_cb": ("USDT_USD_coinbase.csv", "usdt_usd_cb"),
+    }
+
+    frames = {}
+    for key, (fname, col_prefix) in pairs.items():
+        path = os.path.join(DATA_DIR, fname)
+        if os.path.exists(path):
+            df = pd.read_csv(path, parse_dates=["timestamp"])
+            df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
+            df = df.sort_values("timestamp").reset_index(drop=True)
+            df = df.rename(columns={"close": f"{col_prefix}_close", "volume": f"{col_prefix}_vol"})
+            frames[key] = df[["timestamp", f"{col_prefix}_close", f"{col_prefix}_vol"]]
+
+    merged_liq = frames["btc_usd_cb"].copy()
+    for key in ["btc_usdt_bn", "btc_usdc_bn", "btc_usdc_cb", "btc_usdt_cb", "usdt_usd_cb"]:
+        if key in frames:
+            merged_liq = merged_liq.merge(frames[key], on="timestamp", how="inner")
+
+    merged_liq = merged_liq.sort_values("timestamp").reset_index(drop=True)
+
+    merged_liq["implied_usdc_cb"] = merged_liq["btc_usd_cb_close"] / merged_liq["btc_usdc_cb_close"]
+    merged_liq["implied_usdc_bn"] = merged_liq["btc_usd_cb_close"] / merged_liq["btc_usdc_bn_close"]
+    merged_liq["usdc_discount_cb_bps"] = (merged_liq["implied_usdc_cb"] - 1.0) * 10000
+    merged_liq["usdc_discount_bn_bps"] = (merged_liq["implied_usdc_bn"] - 1.0) * 10000
+
+    merged_liq["hour"] = merged_liq["timestamp"].dt.floor("h")
+    merged_liq["is_weekend"] = merged_liq["timestamp"].dt.dayofweek.isin([5, 6])
+
+    return merged_2023, merged_2022, merged_liq
 
 def calculate_half_life(df):
     svb_start = pd.Timestamp("2023-03-10 00:00:00", tz="UTC")
@@ -117,7 +152,7 @@ def render():
     **Index:**
     1. [The 'Kimchi Premium' vs. The 'Regulatory Premium'](#the-kimchi-premium-vs-the-regulatory-premium)
     2. [Endogenous vs. Exogenous Failures](#endogenous-vs-exogenous-failures)
-    3. [Regulatory Compliance vs. Privacy: ZKP Solutions](#regulatory-compliance-vs-privacy-zkp-solutions)
+    3. [Liquidity Evolution](#liquidity-evolution)
     """)
     
     st.divider()
@@ -141,7 +176,7 @@ def render():
         """
     )
 
-    df_2023, df_2022 = load_data()
+    df_2023, df_2022, df_liq = load_data()
     
     st.subheader("Application to March 2023 Data")
     st.markdown(
@@ -320,58 +355,326 @@ def render():
         This rapid recovery stands in stark contrast to UST's terminal decline.
         """
     )
+    
+    st.divider()
+
+    st.header("Liquidity Evolution")
+
+    st.markdown("""
+    **Sub-Index:**
+    1. [Act I: The Fracture](#act-i-the-fracture-march-10-11-2023)
+    2. [Act II: The Two Exit Doors](#act-ii-the-two-exit-doors)
+    3. [Act III: The Aftermath](#act-iii-the-aftermath-fee-structures-custodial-shifts)
+    4. [Act IV: The GENIUS Act](#act-iv-the-genius-act-does-it-solve-the-problem)
+    """)
 
     st.divider()
 
-    st.header("Regulatory Compliance vs. Privacy: ZKP Solutions")
-    
+    # ── ACT I ──────────────────────────────────────────────────────────
+
+    st.subheader("Act I: The Fracture (March 10–11, 2023)")
+
     st.markdown(
         """
-        The **GENIUS Act** introduces a fundamental tension: it secures the onshore market by subjecting stablecoin issuers 
-        to the **Bank Secrecy Act (BSA)**, but in doing so, it risks "de-pegging" the U.S. from the global, 
-        privacy-centric offshore crypto ecosystem.
+        On **Friday, March 10, 2023**, Silicon Valley Bank collapsed. Circle disclosed that **$3.3 billion** 
+        of USDC reserves were trapped at SVB. Within hours, Coinbase — the largest U.S. crypto exchange — 
+        **halted USDC-to-USD conversions**, citing the need to wait for the banking system to reopen on Monday.
+
+        The crypto market, which operates 24/7, was now locked out of the traditional financial system 
+        on a **weekend**. Panic ensued. But the panic didn't flow in one direction — it **fractured**.
+        """
+    )
+
+    hourly = df_liq.groupby("hour").agg(
+        coinbase_vol=("btc_usdc_cb_vol", "sum"),
+        binance_vol=("btc_usdc_bn_vol", "sum"),
+        timestamp=("hour", "first"),
+    ).reset_index(drop=True)
+
+    fig4 = make_subplots(specs=[[{"secondary_y": True}]])
+
+    fig4.add_trace(
+        go.Bar(
+            x=hourly["timestamp"], y=hourly["coinbase_vol"],
+            name="Coinbase BTC/USDC Volume",
+            marker_color="rgba(78, 205, 196, 0.6)",
+        ),
+        secondary_y=False,
+    )
+    fig4.add_trace(
+        go.Bar(
+            x=hourly["timestamp"], y=hourly["binance_vol"],
+            name="Binance BTC/USDC Volume",
+            marker_color="rgba(255, 107, 107, 0.6)",
+        ),
+        secondary_y=True,
+    )
+
+    fig4.add_vrect(
+        x0=svb_start, x1=svb_end,
+        fillcolor="rgba(255,107,107,0.15)", line_width=0,
+        annotation_text="SVB Weekend", annotation_position="top left",
+    )
+
+    fig4.update_yaxes(title_text="Coinbase Volume (BTC)", secondary_y=False)
+    fig4.update_yaxes(title_text="Binance Volume (BTC)", secondary_y=True, showgrid=False)
+    _chart_layout(fig4, "Volume Fracture: Coinbase vs Binance (BTC/USDC)", "", height=450)
+    st.plotly_chart(fig4, use_container_width=True)
+
+    crisis_df_liq = df_liq[(df_liq["timestamp"] >= svb_start) & (df_liq["timestamp"] <= svb_end)]
+    pre_crisis_liq = df_liq[df_liq["timestamp"] < svb_start]
+
+    bn_vol_crisis = crisis_df_liq["btc_usdc_bn_vol"].sum()
+    bn_vol_pre = pre_crisis_liq["btc_usdc_bn_vol"].sum() / max(1, len(pre_crisis_liq)) * len(crisis_df_liq)
+    cb_vol_crisis = crisis_df_liq["btc_usdc_cb_vol"].sum()
+    cb_vol_pre = pre_crisis_liq["btc_usdc_cb_vol"].sum() / max(1, len(pre_crisis_liq)) * len(crisis_df_liq)
+
+    c1, c2 = st.columns(2)
+    with c1:
+        bn_change = ((bn_vol_crisis / max(bn_vol_pre, 1)) - 1) * 100
+        st.metric("Binance USDC Volume Change (Crisis vs Pre)", f"+{bn_change:.0f}%")
+    with c2:
+        cb_change = ((cb_vol_crisis / max(cb_vol_pre, 1)) - 1) * 100
+        st.metric("Coinbase USDC Volume Change (Crisis vs Pre)", f"{cb_change:.0f}%")
+
+    st.info(
+        """
+        **Inference:** When Coinbase halted conversions, liquidity didn't disappear — it **migrated**. 
+        Traders who needed to exit USDC flooded to Binance to swap USDC for USDT (the "Flight to Safety"), 
+        while those seeking fiat sought alternatives like Kraken. The volume chart shows this fracture in real-time.
+        """
+    )
+
+    st.divider()
+
+    # ── ACT II ─────────────────────────────────────────────────────────
+
+    st.subheader("Act II: The Two Exit Doors")
+
+    st.markdown(
+        """
+        The crisis revealed that not all "exits" from USDC are equal. The market spontaneously organized 
+        into two distinct corridors:
         """
     )
 
     col1, col2 = st.columns(2)
-    
     with col1:
-        st.markdown("#### The Friction: BSA & AML Compliance")
         st.error(
-            """
-            **Requirement:**
-            Stablecoin issuers must implement strict Anti-Money Laundering (AML) and sanctions compliance programs.
+            r"""
+            **Exit Door 1: "Flight to Fiat"**
             
-            **The Problem:**
-            Traditional compliance often requires the exchange of sensitive PII (Personally Identifiable Information). 
-            Offshore participants—who may prioritize censorship resistance and privacy—may find these "onshore gates" 
-            too high, leading to a fragmented global market.
+            USDC $\to$ USD
+            
+            **Destination:** Kraken, other exchanges with direct fiat rails.
+            
+            **Who:** Institutional holders needing USD settlement.
+            
+            **Problem:** Coinbase halted this door. Kraken became the backup, 
+            but with wider spreads and less liquidity.
             """
         )
-
     with col2:
-        st.markdown("#### The Solution: ZKP 'Compliance-by-Design'")
         st.success(
-            """
-            **Zero-Knowledge Proofs (ZKPs):**
-            Enable a "proof of validity" without revealing underlying data. An institution can prove a 
-            transaction is compliant without sharing sensitive customer details.
+            r"""
+            **Exit Door 2: "Flight to Safety"**
             
-            **Technology at Work:**
-            Initiatives like the BIS's **"Project Mandala"** use ZKPs to verify compliance statements 
-            (sanctions screening, capital flow checks) across borders automatically.
+            USDC $\to$ USDT
+            
+            **Destination:** Binance (dominant USDC/USDT liquidity).
+            
+            **Who:** Traders wanting stablecoin exposure without fiat dependency.
+            
+            **Outcome:** USDT became the "safe haven" — paradoxically, the 
+            *unregulated* stablecoin was viewed as safer than the *regulated* one.
             """
         )
 
-    st.info(
+    fig5 = go.Figure()
+    fig5.add_trace(go.Scatter(
+        x=df_liq["timestamp"], y=df_liq["usdc_discount_cb_bps"],
+        name="USDC Discount (Coinbase)", line=dict(color="#FF6B6B", width=1.5),
+    ))
+    fig5.add_trace(go.Scatter(
+        x=df_liq["timestamp"], y=df_liq["usdc_discount_bn_bps"],
+        name="USDC Discount (Binance)", line=dict(color="#FFD93D", width=1.5),
+    ))
+    fig5.add_hline(y=0, line_dash="dash", line_color="white", annotation_text="Parity")
+    fig5.add_vrect(
+        x0=svb_start, x1=svb_end,
+        fillcolor="rgba(255,107,107,0.15)", line_width=0,
+        annotation_text="SVB Weekend", annotation_position="top left",
+    )
+    _chart_layout(fig5, "USDC Discount: Coinbase vs Binance (bps)", "Basis Points")
+    st.plotly_chart(fig5, use_container_width=True)
+
+    peak_discount_cb = crisis_df_liq["usdc_discount_cb_bps"].min()
+    peak_discount_bn = crisis_df_liq["usdc_discount_bn_bps"].min()
+
+    c1, c2 = st.columns(2)
+    with c1:
+        st.metric("Peak USDC Discount (Coinbase)", f"{peak_discount_cb:.0f} bps")
+    with c2:
+        st.metric("Peak USDC Discount (Binance)", f"{peak_discount_bn:.0f} bps")
+
+    st.warning(
         """
-        **The Future Architecture: "Compliance-by-Design"**
+        **Key Finding:** The USDC discount was **deeper on Binance** than on Coinbase during the crisis. 
+        This is counterintuitive — Binance had *more* USDC/USDT liquidity. The explanation is that 
+        Binance traders were **dumping USDC en masse** to acquire USDT, creating selling pressure that 
+        exceeded what Coinbase (where conversions were halted) experienced.
+        """
+    )
+
+    st.divider()
+
+    # ── ACT III ────────────────────────────────────────────────────────
+
+    st.subheader("Act III: The Aftermath — Fee Structures & Custodial Shifts")
+
+    st.markdown(
+        """
+        The SVB crisis forced the stablecoin ecosystem to adapt. Two structural changes emerged 
+        that reshape how liquidity flows will behave in the next crisis:
+        """
+    )
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("#### Coinbase's New Fee Gate")
+        st.info(
+            """
+            **Policy Change:** Coinbase introduced fees for net USDC-to-USD conversions exceeding 
+            **$75 million** per rolling 30-day period (with exemptions for Tier 1 liquidity providers).
+            
+            **Effect:** This creates a soft "circuit breaker." During a panic, large institutional 
+            redemptions are disincentivized, slowing capital flight and giving the issuer time to 
+            liquidate reserves in an orderly manner.
+            
+            **Analogy:** This is functionally similar to a mutual fund's **redemption gate** — 
+            a mechanism that limits withdrawals during stress to prevent a fire sale.
+            """
+        )
+    with col2:
+        st.markdown("#### Circle's Custodial Flight to Quality")
+        st.info(
+            """
+            **Policy Change:** Circle shifted significant reserve custody to **BNY Mellon**, the world's 
+            largest custodian bank (with $46.7 trillion in assets under custody).
+            
+            **Effect:** By diversifying away from regional banks like SVB, Circle reduces single-point-of-failure 
+            risk. BNY Mellon is a **G-SIB** (Global Systemically Important Bank), meaning it benefits from 
+            enhanced regulatory oversight and implicit government backstops.
+            
+            **Signal:** This move tells institutional investors: *"Your reserves are held at a bank 
+            that is too big to fail."*
+            """
+        )
+
+    spread = df_liq.copy()
+    spread["basis_spread_bps"] = (
+        (spread["btc_usd_cb_close"] / spread["btc_usdt_bn_close"]) - 1.0
+    ) * 10000
+
+    hourly_spread = spread.groupby("hour").agg(
+        spread=("basis_spread_bps", "mean"),
+        timestamp=("hour", "first"),
+        is_weekend=("is_weekend", "first"),
+    ).reset_index(drop=True)
+
+    weekend_spread = hourly_spread[hourly_spread["is_weekend"]]["spread"]
+    weekday_spread = hourly_spread[~hourly_spread["is_weekend"]]["spread"]
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.metric("Avg Weekday Spread", f"{weekday_spread.mean():.1f} bps")
+    with c2:
+        st.metric("Avg Weekend Spread", f"{weekend_spread.mean():.1f} bps")
+    with c3:
+        gap = weekend_spread.std() - weekday_spread.std()
+        st.metric("Weekend Volatility Premium", f"+{abs(gap):.1f} bps σ")
+
+    st.divider()
+
+    # ── ACT IV ─────────────────────────────────────────────────────────
+
+    st.subheader("Act IV: The GENIUS Act — Does It Solve the Problem?")
+
+    st.markdown(
+        """
+        The **GENIUS Act** (Guiding and Establishing National Innovation for U.S. Stablecoins) represents 
+        the most comprehensive U.S. regulatory framework for stablecoins. It mandates 1:1 reserve backing, 
+        prohibits algorithmic stablecoins, and establishes federal oversight.
+
+        **But does it solve the liquidity friction that caused the Coinbase halt?**
+
+        The data suggests: **No. Not fully.**
+        """
+    )
+
+    st.error(
+        r"""
+        **Gap 1: No Federal Reserve Master Accounts**
         
-        By automating compliance and attaching cryptographic proofs to digital assets, ZKPs reduce the 
-        friction between regulated onshore liquidity and the global market. 
+        The GENIUS Act does **not** grant non-bank stablecoin issuers automatic access to 
+        Federal Reserve master accounts or the discount window.
         
-        This architecture preserves **transactional privacy** while ensuring **regulatory adherence**, 
-        potentially solving the stability vs. control trade-off of the GENIUS Act era.
+        **Implication:** Issuers must still rely on commercial banks to interface with the payment system. 
+        If those commercial banks close on weekends, or if Fedwire (which is not 24/7) is the only 
+        settlement rail, the **"weekend gap" persists**.
+        """
+    )
+
+    fig6 = go.Figure()
+
+    wkday = hourly_spread[~hourly_spread["is_weekend"]]
+    wkend = hourly_spread[hourly_spread["is_weekend"]]
+
+    fig6.add_trace(go.Scatter(
+        x=wkday["timestamp"], y=wkday["spread"],
+        mode="lines", name="Weekday Spread",
+        line=dict(color="#4ECDC4", width=1),
+    ))
+    fig6.add_trace(go.Scatter(
+        x=wkend["timestamp"], y=wkend["spread"],
+        mode="lines", name="Weekend Spread",
+        line=dict(color="#FF6B6B", width=1.5),
+    ))
+    fig6.add_hline(y=0, line_dash="dash", line_color="white", annotation_text="Parity")
+    fig6.add_vrect(
+        x0=svb_start, x1=svb_end,
+        fillcolor="rgba(255,107,107,0.15)", line_width=0,
+        annotation_text="SVB Weekend", annotation_position="top left",
+    )
+    _chart_layout(fig6, "The Weekend Gap: Onshore/Offshore Spread by Day Type", "Spread (bps)")
+    st.plotly_chart(fig6, use_container_width=True)
+
+    st.warning(
+        """
+        **Gap 2: Coinbase's Dilemma Remains**
+        
+        Even under the GENIUS Act, an exchange like Coinbase relies on the banking system to clear USD. 
+        If a panic occurs on a **Saturday**, and the issuer cannot liquidate Treasuries or move cash 
+        via Fedwire until **Monday**, the exchange may still be forced to **pause conversions** to 
+        protect its own liquidity.
+        
+        The GENIUS Act ensures **solvency** (the reserves exist), but it does not ensure 
+        **liquidity** (the reserves can be accessed in real-time, 24/7).
+        """
+    )
+
+    st.markdown("#### Conclusion")
+    st.success(
+        """
+        The March 2023 crisis exposed a fundamental tension in stablecoin design: **the collision 
+        between 24/7 crypto markets and 9-to-5 banking infrastructure**.
+        
+        The GENIUS Act addresses the *what* (reserves must exist) but not the *when* (reserves 
+        must be accessible at any hour). Until stablecoin issuers gain direct access to central bank 
+        liquidity facilities — or until real-time payment rails like FedNow are fully integrated — 
+        the "weekend gap" will remain a systemic vulnerability.
+        
+        **The next crisis may not wait for Monday.**
         """
     )
 

@@ -37,6 +37,14 @@ def load_fragmentation_data():
 def render():
     st.header("Liquidity & Fragmentation")
     
+    st.info(
+        """
+        **Research Question 3:** 
+        Does liquidity differ systematically across quote currencies? How do order book depth, 
+        spread, and volatility vary between BTC quoted in USD versus stablecoins?
+        """
+    )
+    
     st.markdown("""
     This analysis examines how liquidity and market efficiency differ systematically across quote currencies 
     (USD vs. Stablecoins) and evaluates the impact of regulatory structures like the **GENIUS Act**.

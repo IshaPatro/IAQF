@@ -4,6 +4,16 @@ import pandas as pd
 
 def render():
     st.header("Regulatory Overlay")
+    
+    st.info(
+        """
+        **Research Question 4:** 
+        Tie your empirical findings to the broader policy context:
+        *   Why might regulated stablecoins alter cross-currency trading patterns?
+        *   What implications does the GENIUS Act (and stablecoin settlement adoption by 
+            payment systems) have for the structure and efficiency of these markets?
+        """
+    )
 
     st.markdown("""
     **Index:**
@@ -12,7 +22,7 @@ def render():
     3. [Cross-Stablecoin Spread & Offshore Fragmentation](#c-the-cross-stablecoin-spread-structural-offshore-fragmentation)
     4. [Bitcoin as Shadow Exchange Rate (SER)](#d-bitcoin-as-shadow-exchange-rate-ser)
     5. [Price Discovery Leadership — VAR & Lead-Lag](#e-price-discovery-leadership-var-lead-lag-analysis)
-    6. [Part II — Crisis Classification: Exogenous vs. Endogenous](#a-classifying-the-2023-crisis-exogenous-vs-endogenous)
+    6. [Part II — Regulatory Compliance vs. Privacy: ZKP Solutions](#a-regulatory-compliance-vs-privacy-zkp-solutions)
     7. [100% Reserve Mandate](#b-eliminating-the-run-risk-basis-the-100-reserve-mandate)
     8. [The Regulatory Premium](#c-the-regulatory-premium-a-new-structural-fragmentation)
     9. [The Weekend Gap — Master Account Problem](#d-the-unresolved-weekend-gap-the-master-account-problem)
@@ -265,43 +275,57 @@ def render():
 
     st.divider()
 
-    st.header("A. Classifying the 2023 Crisis: Exogenous vs. Endogenous")
+    st.header("A. Regulatory Compliance vs. Privacy: ZKP Solutions")
 
-    st.markdown("Correctly classifying the failure mode is a prerequisite to evaluating the GENIUS Act's design targets.")
+    st.markdown(
+        """
+        The **GENIUS Act** introduces a fundamental tension: it secures the onshore market by subjecting stablecoin issuers 
+        to the **Bank Secrecy Act (BSA)**, but in doing so, it risks "de-pegging" the U.S. from the global, 
+        privacy-centric offshore crypto ecosystem.
+        """
+    )
 
     col1, col2 = st.columns(2)
-
+    
     with col1:
-        st.error("""
-        **Type I — Endogenous (Terra/UST, May 2022)**
-
-        - Algorithmic mint/burn backed by LUNA
-        - Collateral derived from stablecoin's own success
-        - Death spiral: **no price floor** (absorbing state)
-        - Correlation w/ crypto market: **−0.39**
-        - **Policy:** Validates GENIUS Act ban on algo stablecoins
-        """)
+        st.markdown("#### The Friction: BSA & AML Compliance")
+        st.error(
+            """
+            **Requirement:**
+            Stablecoin issuers must implement strict Anti-Money Laundering (AML) and sanctions compliance programs.
+            
+            **The Problem:**
+            Traditional compliance often requires the exchange of sensitive PII (Personally Identifiable Information). 
+            Offshore participants—who may prioritize censorship resistance and privacy—may find these "onshore gates" 
+            too high, leading to a fragmented global market.
+            """
+        )
 
     with col2:
-        st.success("""
-        **Type II — Exogenous (USDC, March 2023)**
+        st.markdown("#### The Solution: ZKP 'Compliance-by-Design'")
+        st.success(
+            """
+            **Zero-Knowledge Proofs (ZKPs):**
+            Enable a "proof of validity" without revealing underlying data. An institution can prove a 
+            transaction is compliant without sharing sensitive customer details.
+            
+            **Technology at Work:**
+            Initiatives like the BIS's **"Project Mandala"** use ZKPs to verify compliance statements 
+            (sanctions screening, capital flow checks) across borders automatically.
+            """
+        )
 
-        - Fiat reserves (USD/Treasuries) at SVB
-        - Custodial freeze: reserves existed but inaccessible
-        - Mean-reverting: half-life **~6.59 hrs** once backstop announced
-        - Correlation w/ crypto market: **+0.28** (issuer-specific)
-        - **Policy:** Validates 100% reserve + custody requirements
-        """)
-
-    crisis_data = {
-        "Dimension": ["Mechanism", "Failure Mode", "Correlation w/ Crypto",
-                       "Recovery", "Policy Implication"],
-        "Terra/UST (Type I)": ["Algorithmic mint/burn (LUNA)", "Death spiral — absorbing state",
-                                "−0.39", "Terminal — no floor", "Ban algorithmic stablecoins"],
-        "USDC (Type II)": ["Fiat reserves at SVB", "Custodial freeze — mean-reverting",
-                            "+0.28", "Half-life ~6.59 hrs", "100% reserve + custody mandate"]
-    }
-    st.dataframe(pd.DataFrame(crisis_data).set_index("Dimension"), use_container_width=True)
+    st.info(
+        """
+        **The Future Architecture: "Compliance-by-Design"**
+        
+        By automating compliance and attaching cryptographic proofs to digital assets, ZKPs reduce the 
+        friction between regulated onshore liquidity and the global market. 
+        
+        This architecture preserves **transactional privacy** while ensuring **regulatory adherence**, 
+        potentially solving the stability vs. control trade-off of the GENIUS Act era.
+        """
+    )
 
     st.divider()
 
@@ -442,56 +466,7 @@ def render():
 
     st.divider()
 
-    st.header("F. Zero-Knowledge Proofs — Resolving the Compliance-Privacy Tension")
 
-    st.markdown("""
-    The GENIUS Act's AML/BSA mandates require PII exchange at every compliance checkpoint — structurally
-    incompatible with offshore markets prioritizing censorship resistance and privacy.
-    """)
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.error("""
-        **The Friction**
-
-        Traditional compliance demands sensitive PII
-        (names, addresses, counterparties). Offshore
-        participants find these **"onshore gates" too
-        costly**, routing capital permanently offshore.
-        """)
-
-    with col2:
-        st.success("""
-        **The Cryptographic Solution**
-
-        ZKPs generate a proof that a transaction
-        satisfies compliance (sanctions, AML, capital
-        flow limits) **without revealing** underlying
-        data or customer PII.
-        """)
-
-    st.info("""
-    **Live Implementation — BIS Project Mandala**
-
-    Uses ZKPs to verify compliance statements across jurisdictions automatically, without PII exchange.
-    Demonstrates ZKP-based compliance is **operationally feasible at institutional scale**.
-    """)
-
-    st.markdown("""
-    **Compliance-by-Design:** AML/BSA requirements are cryptographically embedded at the **protocol level**
-    rather than enforced through post-hoc reporting — allowing regulated onshore liquidity to connect to
-    decentralized markets without fragmenting into irreconcilable regulatory silos.
-    """)
-
-    st.warning("""
-    **Without ZKP Infrastructure:** The GENIUS Act risks creating a bifurcated market — a deep, compliant
-    onshore pool and a fragmented, higher-friction offshore pool with limited arbitrage due to *regulatory*
-    rather than economic barriers.
-
-    **With ZKP Infrastructure:** The onshore/offshore spread narrows over time as compliance friction
-    approaches zero for participants using cryptographic proofs of validity.
-    """)
 
     st.divider()
 

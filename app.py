@@ -6,7 +6,6 @@ import stablecoin_dynamics
 import regulatory_premium
 import regulatory_overlay
 import liquidity_fragmentation
-import liquidity_evolution
 
 st.set_page_config(
     page_title="Cross-Currency Dynamics under Stablecoin Regulation",
@@ -78,10 +77,9 @@ tabs = st.tabs([
     "Overview",
     "Cross-Currency Basis Analysis",
     "Stablecoin Dynamics",
-    "Regulatory Overlay",
     "Liquidity & Fragmentation",
+    "Regulatory Overlay",
     "Case Studies",
-    "Liquidity Evolution",
     "Quant Strategies",
 ])
 
@@ -95,16 +93,13 @@ with tabs[2]:
     stablecoin_dynamics.render()
 
 with tabs[3]:
-    regulatory_overlay.render()
+    liquidity_fragmentation.render()
 
 with tabs[4]:
-    liquidity_fragmentation.render()
+    regulatory_overlay.render()
 
 with tabs[5]:
     regulatory_premium.render()
 
 with tabs[6]:
-    liquidity_evolution.render()
-
-with tabs[7]:
     strategies.render()

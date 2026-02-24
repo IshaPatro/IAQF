@@ -62,6 +62,16 @@ def _chart_layout(fig, title, yaxis_title, height=420):
 
 def render():
     st.header("Cross-Currency Basis Analysis")
+
+    st.info(
+        """
+        **Research Question 1:** 
+        How does the price of BTC/USDT compare to BTC/USD over time? Do we observe 
+        persistent differences once transaction costs are considered, and what drives those 
+        differences?
+        """
+    )
+
     st.markdown("**BTC/USD vs BTC/USDT — Coinbase — March 2023 (1-min OHLCV)**")
 
     st.divider()

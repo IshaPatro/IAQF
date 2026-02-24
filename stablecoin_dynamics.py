@@ -219,6 +219,16 @@ COLORS = {
 
 def render():
     st.header("Stablecoin Dynamics")
+    
+    st.info(
+        """
+        **Research Question 2:** 
+        How do premium/discount patterns in stablecoin quoted markets (e.g., USDT vs USDC) 
+        vary across exchanges and regimes? How might forthcoming U.S. regulation affect 
+        confidence in these instruments?
+        """
+    )
+    
     st.markdown("**Premium/Discount Patterns in USDT vs USDC Markets — Coinbase & Binance — March 2023**")
 
     st.divider()
